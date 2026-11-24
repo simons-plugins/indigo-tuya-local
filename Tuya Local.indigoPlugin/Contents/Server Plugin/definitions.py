@@ -130,15 +130,8 @@ def _is_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def dps_to_states(defn, dps):
-    """DP dict -> list of ``{"key", "value"[, "uiValue"]}`` state updates.
-
-    Always ends with an ``unknownDps`` entry (JSON string). DPs the definition
-    does not know, and known DPs whose value has the wrong type, are placed
-    there verbatim rather than dropped or coerced; the known state is left
-    untouched in the latter case. An enum value outside the definition is
-    written as the raw string.
-    """
+def _split_dps(defn, dps):
+    """DP dict -> (state updates, {dp: raw} of DPs that did not translate)."""
     updates, unknown = [], {}
     for key, raw in dps.items():
         dp = str(key)
@@ -164,22 +157,51 @@ def dps_to_states(defn, dps):
                 updates.append({"key": name, "value": bool((raw >> bit) & 1)})
         else:
             unknown[dp] = raw
+    return updates, unknown
+
+
+def dps_to_states(defn, dps):
+    """DP dict -> list of ``{"key", "value"[, "uiValue"]}`` state updates.
+
+    Always ends with an ``unknownDps`` entry (JSON string). DPs the definition
+    does not know, and known DPs whose value has the wrong type, are placed
+    there verbatim rather than dropped or coerced; the known state is left
+    untouched in the latter case. An enum value outside the definition is
+    written as the raw string.
+    """
+    updates, unknown = _split_dps(defn, dps)
     updates.append({"key": UNKNOWN_DPS_STATE, "value": json.dumps(unknown, sort_keys=True)})
     return updates
 
 
-def display_text(defn, states):
+def display_dp(defn):
+    """The data point (str) behind the definition's display state, or None."""
+    return defn.by_state[defn.display_state].dp if defn.display_state else None
+
+
+def rejected_display_value(defn, dps):
+    """``(dp, raw)`` if this batch carries the display state's DP with a value that did
+    not translate (wrong type), else None. The display state is then stale, not current."""
+    dp = display_dp(defn)
+    if dp is None:
+        return None
+    unknown = _split_dps(defn, dps)[1]
+    return (dp, unknown[dp]) if dp in unknown else None
+
+
+def display_text(defn, states, display_current=True):
     """Text for the State column of a relay device, or None to leave Indigo's default.
 
     ``states`` is state id -> value. Off -> "off"; on -> the definition's display
-    state with its unit (e.g. "56%"); on but no usable value yet -> "on".
+    state with its unit (e.g. "56%"); on but no usable value yet, or the value is
+    known to be stale (``display_current`` False) -> "on".
     """
     if defn.display_state is None:
         return None
     if states.get("onOffState") is False:
         return "off"
     value = states.get(defn.display_state)
-    if value is None or value == "":
+    if not display_current or value is None or value == "":
         return "on"
     return f"{value}{defn.by_state[defn.display_state].unit or ''}"
 

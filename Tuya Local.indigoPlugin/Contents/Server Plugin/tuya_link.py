@@ -132,7 +132,7 @@ class TuyaLink(threading.Thread):
         try:
             fn(*args)
         except Exception as exc:  # a broken callback must not kill the link
-            self._log.error(f"{self._label}: callback failed: {self._redact(exc)}")
+            self._log.error(f"{self._label}: callback failed: {type(exc).__name__}: {self._redact(exc)}")
 
     def _report(self, connected, reason):
         self._connected = connected
@@ -201,6 +201,7 @@ class TuyaLink(threading.Thread):
     def _session(self):
         self._drain("link was down")
         self._session_was_up = False
+        self._cache.clear()  # a DP the new status() omits must not be re-emitted from before the drop
         dev = self._call("connect", self._factory, self._device_id, self._address,
                                            self._local_key, self._version)
         try:

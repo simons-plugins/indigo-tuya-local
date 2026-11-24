@@ -32,6 +32,7 @@ class Plugin(indigo.PluginBase):
         self.debug = _truthy(pluginPrefs.get("showDebugInfo", False))
         self._links = {}
         self._ui_text = {}  # dev.id -> last State-column text written
+        self._bad_display = {}  # dev.id -> DPs whose display value is wrong-type (warned once)
         self._definitions = {}
         self._device_factory = tuya_link.default_device_factory
         self._timings = None
@@ -56,7 +57,6 @@ class Plugin(indigo.PluginBase):
 
     def deviceStartComm(self, dev):
         super().deviceStartComm(dev)
-        self._ui_text.pop(dev.id, None)
         try:
             dev.stateListOrDisplayStateIdChanged()  # must precede the first state write
         except Exception as exc:
@@ -64,6 +64,7 @@ class Plugin(indigo.PluginBase):
         old = self._links.pop(dev.id, None)
         if old:
             old.stop()
+        self._forget_display(dev.id)  # after stop(): a callback in flight cannot re-add it
         props = dev.pluginProps
         if dev.deviceTypeId == RELAY_TYPE and self._definition_for(dev) is None:
             self._mark_down(dev, f"Product definition {props.get('definitionId')!r} not found")
@@ -82,10 +83,10 @@ class Plugin(indigo.PluginBase):
 
     def deviceStopComm(self, dev):
         super().deviceStopComm(dev)
-        self._ui_text.pop(dev.id, None)
         link = self._links.pop(dev.id, None)
         if link:
             link.stop()
+        self._forget_display(dev.id)  # after stop(): a callback in flight cannot re-add it
         try:
             self._write_connection(indigo.devices[dev.id], False, "Device stopped")
         except Exception as exc:  # the device may already be deleted
@@ -102,43 +103,76 @@ class Plugin(indigo.PluginBase):
         dev = self._device(dev_id)
         if dev is None:
             return
+        defn = None
         if dev.deviceTypeId == RELAY_TYPE:
             defn = self._definition_for(dev)
             updates = defs.dps_to_states(defn, dps) if defn else []
         else:
             updates = [{"key": "dps", "value": json.dumps(dps, sort_keys=True)}]
         changed = [u for u in updates if dev.states.get(u["key"]) != u["value"]]
+        text = None
         if dev.deviceTypeId == RELAY_TYPE and defn:
-            changed = self._with_display_text(dev, defn, updates, changed)
+            try:
+                changed, text = self._with_display_text(dev, defn, dps, updates, changed)
+            except Exception:  # a display bug must not block the real state updates
+                self.logger.exception(f'"{dev.name}": could not work out the State column text')
+                changed = [u for u in updates if dev.states.get(u["key"]) != u["value"]]
         if changed:
             dev.updateStatesOnServer(changed)
+            if text is not None:  # remembered only once the write has succeeded
+                self._ui_text[dev.id] = text
 
-    def _with_display_text(self, dev, defn, updates, changed):
-        """Attach the State-column text (display-only uiValue on onOffState) when it changed.
+    def _forget_display(self, dev_id):
+        self._ui_text.pop(dev_id, None)
+        self._bad_display.pop(dev_id, None)
+
+    def _track_display_value(self, dev, defn, dps):
+        """True while the display state's value is current; False after a wrong-type value
+        for its DP, until a good one arrives. Warns once per device and DP."""
+        bad = self._bad_display.setdefault(dev.id, set())
+        rejected = defs.rejected_display_value(defn, dps)
+        if rejected:
+            dp, raw = rejected
+            if dp not in bad:
+                bad.add(dp)
+                self.logger.warning(f'"{dev.name}": data point {dp} sent {raw!r}, which is the wrong type '
+                                    f"for {defn.display_state}; the State column shows only \"on\" until it sends a valid value")
+        else:
+            bad.discard(defs.display_dp(defn))
+        return not bad
+
+    def _with_display_text(self, dev, defn, dps, updates, changed):
+        """Return ``(changed, text)``: ``changed`` with the State-column text (display-only
+        uiValue on onOffState) attached when it differs from what was last written, and
+        that text (None if nothing was attached; the caller memoises it after the write).
 
         The real onOffState boolean is never replaced. The memo is what was last
         written, so a humidity-only change still refreshes the column.
         """
         merged = dict(dev.states)
         merged.update({u["key"]: u["value"] for u in updates})
-        text = defs.display_text(defn, merged)
+        current = self._track_display_value(dev, defn, dps) if defn.display_state else True
+        text = defs.display_text(defn, merged, current)
         if text is None or self._ui_text.get(dev.id) == text:
-            return changed
+            return changed, None
         entry = next((u for u in changed if u["key"] == "onOffState"), None)
         if entry is None:
             if merged.get("onOffState") is None:
-                return changed  # no boolean to carry the text yet
+                return changed, None  # no boolean to carry the text yet
             entry = {"key": "onOffState", "value": merged["onOffState"]}
-            changed = changed + [entry]
-        entry["uiValue"] = text
-        self._ui_text[dev.id] = text
-        return changed
+            changed = changed + [dict(entry, uiValue=text)]
+        else:
+            changed = [dict(u, uiValue=text) if u is entry else u for u in changed]
+        return changed, text
 
     def _on_connection(self, dev_id, connected, reason):
         dev = self._device(dev_id)
         if dev is None:
             return
-        self._ui_text.pop(dev_id, None)  # error state may have replaced the text
+        if not connected:
+            # The error state may replace the text. Not popped on connect: the first
+            # status() reaches _on_dps before _on_connection(True).
+            self._ui_text.pop(dev_id, None)
         was_up = dev.states.get("connected") is True
         self._write_connection(dev, connected, reason)
         if connected and not was_up:
