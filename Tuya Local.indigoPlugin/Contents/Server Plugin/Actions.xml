@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<Actions>
+    <Action id="setTargetHumidity" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Target Humidity</Name>
+        <CallbackMethod>actionSetTargetHumidity</CallbackMethod>
+        <ConfigUI>
+            <Field id="targetHumidity" type="textfield" defaultValue="50">
+                <Label>Target humidity (%):</Label>
+            </Field>
+            <Field id="targetHumidityHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>35 to 70 in steps of 5 for the Meaco DD8L Pro.</Label>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setMode" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Mode</Name>
+        <CallbackMethod>actionSetMode</CallbackMethod>
+        <ConfigUI>
+            <Field id="mode" type="menu">
+                <Label>Mode:</Label>
+                <List class="self" filter="mode" method="choiceList" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setPowerLevel" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Power Level</Name>
+        <CallbackMethod>actionSetPowerLevel</CallbackMethod>
+        <ConfigUI>
+            <Field id="powerLevel" type="menu">
+                <Label>Power level:</Label>
+                <List class="self" filter="powerLevel" method="choiceList" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setSwing" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Swing</Name>
+        <CallbackMethod>actionSetSwing</CallbackMethod>
+        <ConfigUI>
+            <Field id="swing" type="menu">
+                <Label>Swing:</Label>
+                <List class="self" filter="swing" method="choiceList" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setTimer" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Off-Timer</Name>
+        <CallbackMethod>actionSetTimer</CallbackMethod>
+        <ConfigUI>
+            <Field id="timer" type="menu">
+                <Label>Off-timer:</Label>
+                <List class="self" filter="timer" method="choiceList" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setIoniser" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Ioniser</Name>
+        <CallbackMethod>actionSetIoniser</CallbackMethod>
+        <ConfigUI>
+            <Field id="value" type="menu" defaultValue="on">
+                <Label>State:</Label>
+                <List>
+                    <Option value="on">On</Option>
+                    <Option value="off">Off</Option>
+                </List>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setChildLock" deviceFilter="self.tuyaDehumidifier" uiPath="DeviceActions">
+        <Name>Set Child Lock</Name>
+        <CallbackMethod>actionSetChildLock</CallbackMethod>
+        <ConfigUI>
+            <Field id="value" type="menu" defaultValue="on">
+                <Label>State:</Label>
+                <List>
+                    <Option value="on">On</Option>
+                    <Option value="off">Off</Option>
+                </List>
+            </Field>
+        </ConfigUI>
+    </Action>
+    <Action id="setDataPoint" deviceFilter="self" uiPath="DeviceActions">
+        <Name>Set Data Point</Name>
+        <CallbackMethod>actionSetDataPoint</CallbackMethod>
+        <ConfigUI>
+            <Field id="dp" type="textfield" defaultValue="1">
+                <Label>Data point number:</Label>
+            </Field>
+            <Field id="value" type="textfield" defaultValue="true">
+                <Label>Value (JSON):</Label>
+            </Field>
+            <Field id="valueHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>JSON, e.g. true, 55 or "auto" (strings need quotes). Sent as-is, bypassing the product definition.</Label>
+            </Field>
+        </ConfigUI>
+    </Action>
+</Actions>

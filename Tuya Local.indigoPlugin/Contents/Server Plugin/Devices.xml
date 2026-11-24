@@ -1,0 +1,173 @@
+<?xml version="1.0"?>
+<Devices>
+    <Device type="relay" id="tuyaDehumidifier">
+        <Name>Tuya Dehumidifier</Name>
+        <ConfigUI>
+            <Field id="address" type="textfield">
+                <Label>IP address:</Label>
+            </Field>
+            <Field id="deviceId" type="textfield">
+                <Label>Device ID:</Label>
+            </Field>
+            <Field id="localKey" type="textfield" secure="true">
+                <Label>Local key:</Label>
+            </Field>
+            <Field id="localKeyHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>secure="true" only masks this field in the Indigo UI - the key is stored in clear in Indigo's database. It is never written to the log.</Label>
+            </Field>
+            <Field id="protocolVersion" type="menu" defaultValue="3.5">
+                <Label>Protocol version:</Label>
+                <List>
+                    <Option value="3.3">3.3</Option>
+                    <Option value="3.4">3.4</Option>
+                    <Option value="3.5">3.5</Option>
+                </List>
+            </Field>
+            <Field id="versionHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>A wrong key or version is never retried quickly: repeated failed 3.4/3.5 handshakes can lock a device out of LAN access until it is power-cycled.</Label>
+            </Field>
+            <Field id="definitionId" type="menu">
+                <Label>Product:</Label>
+                <List class="self" filter="dehumidifier" method="definitionList"/>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="humidity">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Humidity</TriggerLabel>
+                <ControlPageLabel>Humidity</ControlPageLabel>
+            </State>
+            <State id="targetHumidity">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Target Humidity</TriggerLabel>
+                <ControlPageLabel>Target Humidity</ControlPageLabel>
+            </State>
+            <State id="mode">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Mode</TriggerLabel>
+                <ControlPageLabel>Mode</ControlPageLabel>
+            </State>
+            <State id="powerLevel">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Power Level</TriggerLabel>
+                <ControlPageLabel>Power Level</ControlPageLabel>
+            </State>
+            <State id="swing">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Swing</TriggerLabel>
+                <ControlPageLabel>Swing</ControlPageLabel>
+            </State>
+            <State id="ioniser">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Ioniser</TriggerLabel>
+                <ControlPageLabel>Ioniser</ControlPageLabel>
+            </State>
+            <State id="childLock">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Child Lock</TriggerLabel>
+                <ControlPageLabel>Child Lock</ControlPageLabel>
+            </State>
+            <State id="timer">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Off Timer</TriggerLabel>
+                <ControlPageLabel>Off Timer</ControlPageLabel>
+            </State>
+            <State id="timerMinutesLeft">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Timer Minutes Left</TriggerLabel>
+                <ControlPageLabel>Timer Minutes Left</ControlPageLabel>
+            </State>
+            <State id="timerRemaining">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Timer Remaining</TriggerLabel>
+                <ControlPageLabel>Timer Remaining</ControlPageLabel>
+            </State>
+            <State id="faultCode">
+                <ValueType>Integer</ValueType>
+                <TriggerLabel>Fault Code</TriggerLabel>
+                <ControlPageLabel>Fault Code</ControlPageLabel>
+            </State>
+            <State id="tankFull">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Tank Full</TriggerLabel>
+                <ControlPageLabel>Tank Full</ControlPageLabel>
+            </State>
+            <State id="cleanFilter">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Clean Filter</TriggerLabel>
+                <ControlPageLabel>Clean Filter</ControlPageLabel>
+            </State>
+            <State id="cableTidy">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Cable Tidy</TriggerLabel>
+                <ControlPageLabel>Cable Tidy</ControlPageLabel>
+            </State>
+            <State id="coolingDown">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Cooling Down</TriggerLabel>
+                <ControlPageLabel>Cooling Down</ControlPageLabel>
+            </State>
+            <State id="unknownDps">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Unknown Data Points</TriggerLabel>
+                <ControlPageLabel>Unknown Data Points</ControlPageLabel>
+            </State>
+            <State id="connected">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Connected</TriggerLabel>
+                <ControlPageLabel>Connected</ControlPageLabel>
+            </State>
+            <State id="lastError">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Error</TriggerLabel>
+                <ControlPageLabel>Last Error</ControlPageLabel>
+            </State>
+        </States>
+    </Device>
+    <Device type="custom" id="tuyaGeneric">
+        <Name>Tuya Generic (raw data points)</Name>
+        <ConfigUI>
+            <Field id="address" type="textfield">
+                <Label>IP address:</Label>
+            </Field>
+            <Field id="deviceId" type="textfield">
+                <Label>Device ID:</Label>
+            </Field>
+            <Field id="localKey" type="textfield" secure="true">
+                <Label>Local key:</Label>
+            </Field>
+            <Field id="localKeyHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>secure="true" only masks this field in the Indigo UI - the key is stored in clear in Indigo's database. It is never written to the log.</Label>
+            </Field>
+            <Field id="protocolVersion" type="menu" defaultValue="3.5">
+                <Label>Protocol version:</Label>
+                <List>
+                    <Option value="3.3">3.3</Option>
+                    <Option value="3.4">3.4</Option>
+                    <Option value="3.5">3.5</Option>
+                </List>
+            </Field>
+            <Field id="versionHelp" type="label" fontSize="small" fontColor="darkgray" alignWithControl="true">
+                <Label>A wrong key or version is never retried quickly: repeated failed 3.4/3.5 handshakes can lock a device out of LAN access until it is power-cycled.</Label>
+            </Field>
+        </ConfigUI>
+        <States>
+            <State id="connected">
+                <ValueType>Boolean</ValueType>
+                <TriggerLabel>Connected</TriggerLabel>
+                <ControlPageLabel>Connected</ControlPageLabel>
+            </State>
+            <State id="lastError">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Last Error</TriggerLabel>
+                <ControlPageLabel>Last Error</ControlPageLabel>
+            </State>
+            <State id="dps">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Data Points (JSON)</TriggerLabel>
+                <ControlPageLabel>Data Points (JSON)</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>connected</UiDisplayStateId>
+    </Device>
+</Devices>

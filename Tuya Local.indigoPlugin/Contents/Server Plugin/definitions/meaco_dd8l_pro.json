@@ -1,0 +1,40 @@
+{
+  "id": "meaco_dd8l_pro",
+  "name": "Meaco DD8L Pro dehumidifier",
+  "kind": "dehumidifier",
+  "productIds": ["vvsrpq0oavmf2vou"],
+  "source": "DP map from Tuya's published product model plus make-all/tuya-local (MIT) devices/meaco_dd8l_pro_dehumidifier.yaml. DP 101 is the heater power level (the Meaco app calls it energy consumption; tuya-local labels it fan mode). DP 103 is undocumented and is surfaced via unknownDps.",
+  "dps": [
+    {"dp": 1, "state": "onOffState", "type": "bool", "settable": true},
+    {"dp": 2, "state": "targetHumidity", "type": "int", "min": 35, "max": 70, "step": 5, "unit": "%", "settable": true},
+    {"dp": 5, "state": "mode", "type": "enum", "settable": true, "values": [
+      {"raw": "dehumidify", "id": "dehumidify", "label": "Smart humidity"},
+      {"raw": "drying", "id": "drying", "label": "Laundry drying"}
+    ]},
+    {"dp": 6, "state": "humidity", "type": "int", "unit": "%", "settable": false},
+    {"dp": 10, "state": "ioniser", "type": "bool", "settable": true},
+    {"dp": 16, "state": "childLock", "type": "bool", "settable": true},
+    {"dp": 17, "state": "timer", "type": "enum", "settable": true, "values": [
+      {"raw": "cancel", "id": "cancel", "label": "Off (cancel timer)"},
+      {"raw": "1h", "id": "1h", "label": "1 hour"},
+      {"raw": "2h", "id": "2h", "label": "2 hours"},
+      {"raw": "3h", "id": "3h", "label": "3 hours"}
+    ]},
+    {"dp": 18, "state": "timerMinutesLeft", "type": "int", "settable": false},
+    {"dp": 19, "state": "faultCode", "type": "bitfield", "settable": false,
+     "bits": {"0": "tankFull", "1": "cleanFilter", "2": "cableTidy", "4": "coolingDown"}},
+    {"dp": 101, "state": "powerLevel", "type": "enum", "settable": true, "values": [
+      {"raw": "200w", "id": "200w", "label": "200 W"},
+      {"raw": "400w", "id": "400w", "label": "400 W"},
+      {"raw": "600w", "id": "600w", "label": "600 W"},
+      {"raw": "auto", "id": "auto", "label": "Auto"}
+    ]},
+    {"dp": 102, "state": "timerRemaining", "type": "string", "settable": false},
+    {"dp": 105, "state": "swing", "type": "enum", "settable": true, "values": [
+      {"raw": "b_swing", "id": "high", "label": "High"},
+      {"raw": "m_swing", "id": "medium", "label": "Medium"},
+      {"raw": "s_swing", "id": "low", "label": "Low"},
+      {"raw": "n_swing", "id": "off", "label": "Off"}
+    ]}
+  ]
+}

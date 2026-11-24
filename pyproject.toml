@@ -1,0 +1,23 @@
+[project]
+name = "indigo-tuya-local"
+version = "2026.0.1"
+description = "Indigo plugin: control Tuya Wi-Fi devices over the LAN (no cloud at runtime)"
+requires-python = ">=3.10"
+
+[tool.pylint.main]
+py-version = "3.10"
+fail-under = 9.0
+jobs = 0
+ignore-paths = ["tests", "__pycache__"]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = ["too-many-lines", "too-many-public-methods", "invalid-name"]
+
+[tool.pylint.basic]
+method-rgx = "[a-z_][a-zA-Z0-9_]{2,}$"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

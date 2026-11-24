@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<PluginConfig>
+    <Field id="showDebugInfo" type="checkbox" defaultValue="false">
+        <Label>Debug logging:</Label>
+        <Description>Log connection and data point detail (the local key is never logged)</Description>
+    </Field>
+</PluginConfig>

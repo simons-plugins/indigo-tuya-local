@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Secrets - never commit (tinytuya's wizard writes devices.json with local keys)
+.env
+.env.local
+devices.json
+snapshot.json
+tinytuya.json
+tuyascan.json
+
+# Nothing is pip-installed (tinytuya is bundled in Server Plugin/); keep any stray Packages/ out of git
+Tuya Local.indigoPlugin/Contents/Packages/
