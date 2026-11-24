@@ -88,6 +88,9 @@ class Definition:
                 if sid in self.by_state or sid == UNKNOWN_DPS_STATE:
                     raise DefinitionError(f"state {sid!r} defined twice or reserved")
             self.by_state[spec.state] = spec
+        self.display_state = data.get("displayState")
+        if self.display_state is not None and self.display_state not in self.by_state:
+            raise DefinitionError(f"displayState {self.display_state!r} is not a state this definition maps")
 
     def state_ids(self):
         """Every state id this definition writes, including bit flags and unknownDps."""
@@ -163,6 +166,22 @@ def dps_to_states(defn, dps):
             unknown[dp] = raw
     updates.append({"key": UNKNOWN_DPS_STATE, "value": json.dumps(unknown, sort_keys=True)})
     return updates
+
+
+def display_text(defn, states):
+    """Text for the State column of a relay device, or None to leave Indigo's default.
+
+    ``states`` is state id -> value. Off -> "off"; on -> the definition's display
+    state with its unit (e.g. "56%"); on but no usable value yet -> "on".
+    """
+    if defn.display_state is None:
+        return None
+    if states.get("onOffState") is False:
+        return "off"
+    value = states.get(defn.display_state)
+    if value is None or value == "":
+        return "on"
+    return f"{value}{defn.by_state[defn.display_state].unit or ''}"
 
 
 def state_to_dps(defn, state, value):

@@ -31,6 +31,7 @@ class Plugin(indigo.PluginBase):
         super().__init__(pluginId, pluginDisplayName, pluginVersion, pluginPrefs)
         self.debug = _truthy(pluginPrefs.get("showDebugInfo", False))
         self._links = {}
+        self._ui_text = {}  # dev.id -> last State-column text written
         self._definitions = {}
         self._device_factory = tuya_link.default_device_factory
         self._timings = None
@@ -55,6 +56,7 @@ class Plugin(indigo.PluginBase):
 
     def deviceStartComm(self, dev):
         super().deviceStartComm(dev)
+        self._ui_text.pop(dev.id, None)
         try:
             dev.stateListOrDisplayStateIdChanged()  # must precede the first state write
         except Exception as exc:
@@ -80,6 +82,7 @@ class Plugin(indigo.PluginBase):
 
     def deviceStopComm(self, dev):
         super().deviceStopComm(dev)
+        self._ui_text.pop(dev.id, None)
         link = self._links.pop(dev.id, None)
         if link:
             link.stop()
@@ -105,13 +108,37 @@ class Plugin(indigo.PluginBase):
         else:
             updates = [{"key": "dps", "value": json.dumps(dps, sort_keys=True)}]
         changed = [u for u in updates if dev.states.get(u["key"]) != u["value"]]
+        if dev.deviceTypeId == RELAY_TYPE and defn:
+            changed = self._with_display_text(dev, defn, updates, changed)
         if changed:
             dev.updateStatesOnServer(changed)
+
+    def _with_display_text(self, dev, defn, updates, changed):
+        """Attach the State-column text (display-only uiValue on onOffState) when it changed.
+
+        The real onOffState boolean is never replaced. The memo is what was last
+        written, so a humidity-only change still refreshes the column.
+        """
+        merged = dict(dev.states)
+        merged.update({u["key"]: u["value"] for u in updates})
+        text = defs.display_text(defn, merged)
+        if text is None or self._ui_text.get(dev.id) == text:
+            return changed
+        entry = next((u for u in changed if u["key"] == "onOffState"), None)
+        if entry is None:
+            if merged.get("onOffState") is None:
+                return changed  # no boolean to carry the text yet
+            entry = {"key": "onOffState", "value": merged["onOffState"]}
+            changed = changed + [entry]
+        entry["uiValue"] = text
+        self._ui_text[dev.id] = text
+        return changed
 
     def _on_connection(self, dev_id, connected, reason):
         dev = self._device(dev_id)
         if dev is None:
             return
+        self._ui_text.pop(dev_id, None)  # error state may have replaced the text
         was_up = dev.states.get("connected") is True
         self._write_connection(dev, connected, reason)
         if connected and not was_up:

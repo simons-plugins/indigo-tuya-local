@@ -171,3 +171,73 @@ def test_status_request_refreshes_only_when_connected(setup, action, caplog):
     link.connected = True
     p.actionControlUniversal(action(device_action="RequestStatus"), dev)
     assert link.refreshes == 1
+
+
+# ------------------------------------------------------- State column text
+def _on_off_writes(dev):
+    """Every onOffState entry written, in order."""
+    return [s for kind, batch in dev.writes if kind == "states" for s in batch if s["key"] == "onOffState"]
+
+
+def test_first_status_writes_on_off_with_humidity_ui_value(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
+
+
+def test_humidity_only_change_rewrites_on_off_with_new_text_and_same_boolean(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {**STATUS, "6": 57})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "57%"}]
+
+
+def test_identical_data_writes_no_on_off_entry(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, STATUS)
+    assert dev.writes == [] and _on_off_writes(dev) == []
+
+
+def test_switching_off_writes_off_text_with_false_value(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {"1": False})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": False, "uiValue": "off"}]
+
+
+def test_text_is_rewritten_after_connection_drop_and_reconnect(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    p._on_connection(dev.id, False, "Network Error")
+    p._on_connection(dev.id, True, "")
+    dev.writes.clear()
+    p._on_dps(dev.id, STATUS)  # same data as before the drop
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
+
+
+def test_start_and_stop_comm_forget_the_text(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    assert dev.id in p._ui_text
+    p.deviceStopComm(dev)
+    assert dev.id not in p._ui_text
+
+
+def test_on_off_value_is_never_replaced_by_a_string(setup):
+    p, dev = setup
+    for dps in (STATUS, {**STATUS, "6": 60}, {"1": False}, {"1": True}):
+        p._on_dps(dev.id, dps)
+    entries = _on_off_writes(dev)
+    assert entries and all(isinstance(e["value"], bool) for e in entries)
+    assert isinstance(dev.states["onOffState"], bool)
+
+
+def test_generic_device_gets_no_on_off_entry(make_plugin):
+    dev = _FakeDevice(2, type_id="tuyaGeneric")
+    p = make_plugin([dev])
+    p._on_dps(2, {"1": True})
+    assert _on_off_writes(dev) == []
