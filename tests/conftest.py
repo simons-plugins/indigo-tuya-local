@@ -149,15 +149,22 @@ class _FakeDevice:
         self.id, self.name, self.deviceTypeId = dev_id, name, type_id
         self.pluginProps = dict(props or {"address": "192.168.1.9", "deviceId": "x", "localKey": KEY,
                                           "protocolVersion": "3.5", "definitionId": "meaco_dd8l_pro"})
-        self.states = {}
+        # A real relay always has a boolean onOffState.
+        self.states = {"onOffState": False} if type_id == "tuyaDehumidifier" else {}
         self.writes = []
         self.error_state = "unset"
         self.onState = False
+        self.fail_next_write = False
 
     def updateStatesOnServer(self, states):
+        if self.fail_next_write:
+            self.fail_next_write = False
+            raise RuntimeError("server write failed")
         self.writes.append(("states", [dict(s) for s in states]))
         for s in states:
             self.states[s["key"]] = s["value"]
+            # What Indigo displays: the uiValue if given, else the plain value (as "<key>.ui").
+            self.states[s["key"] + ".ui"] = s.get("uiValue", str(s["value"]))
         self.error_state = None  # real Indigo clears the error state on a state write (clearErrorState default)
 
     def setErrorStateOnServer(self, text):

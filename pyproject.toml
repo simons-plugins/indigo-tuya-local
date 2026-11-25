@@ -1,6 +1,6 @@
 [project]
 name = "indigo-tuya-local"
-version = "2026.0.1"
+version = "2026.1.0"
 description = "Indigo plugin: control Tuya Wi-Fi devices over the LAN (no cloud at runtime)"
 requires-python = ">=3.10"
 

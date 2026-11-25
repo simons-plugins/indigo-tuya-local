@@ -3,6 +3,7 @@
   "name": "Meaco DD8L Pro dehumidifier",
   "kind": "dehumidifier",
   "productIds": ["vvsrpq0oavmf2vou"],
+  "displayState": "humidity",
   "source": "DP map from Tuya's published product model plus make-all/tuya-local (MIT) devices/meaco_dd8l_pro_dehumidifier.yaml. DP 101 is the heater power level (the Meaco app calls it energy consumption; tuya-local labels it fan mode). DP 103 is undocumented and is surfaced via unknownDps.",
   "dps": [
     {"dp": 1, "state": "onOffState", "type": "bool", "settable": true},

@@ -109,3 +109,30 @@ def test_bad_definitions_are_reported_not_swallowed(tmp_path):
 def test_missing_directory_is_an_error_not_an_empty_success(tmp_path):
     found, errors = defs.load_definitions(tmp_path / "missing")
     assert found == {} and errors
+
+
+# ------------------------------------------------------------ display_text
+def test_display_text_on_shows_humidity_with_unit(meaco):
+    assert defs.display_text(meaco, {"onOffState": True, "humidity": 56}) == "56%"
+
+
+def test_display_text_off_wins_even_with_a_humidity_value(meaco):
+    assert defs.display_text(meaco, {"onOffState": False, "humidity": 56}) == "off"
+
+
+@pytest.mark.parametrize("states", [{"onOffState": True}, {"onOffState": True, "humidity": None}])
+def test_display_text_on_without_usable_humidity_says_on(meaco, states):
+    assert defs.display_text(meaco, states) == "on"
+
+
+def test_display_text_is_none_without_display_state():
+    defn = defs.Definition({"id": "x", "name": "x", "kind": "k", "dps": [{"dp": 1, "state": "onOffState", "type": "bool"}]})
+    assert defs.display_text(defn, {"onOffState": True}) is None
+
+
+def test_display_state_naming_an_unmapped_state_is_rejected_at_load(tmp_path):
+    (tmp_path / "bad.json").write_text(json.dumps(
+        {"id": "x", "name": "x", "kind": "k", "displayState": "nope",
+         "dps": [{"dp": 1, "state": "onOffState", "type": "bool"}]}))
+    found, errors = defs.load_definitions(tmp_path)
+    assert found == {} and len(errors) == 1 and "nope" in errors[0][1]

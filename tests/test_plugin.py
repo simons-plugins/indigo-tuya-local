@@ -171,3 +171,155 @@ def test_status_request_refreshes_only_when_connected(setup, action, caplog):
     link.connected = True
     p.actionControlUniversal(action(device_action="RequestStatus"), dev)
     assert link.refreshes == 1
+
+
+# ------------------------------------------------------- State column text
+def _on_off_writes(dev):
+    """Every onOffState entry written, in order."""
+    return [s for kind, batch in dev.writes if kind == "states" for s in batch if s["key"] == "onOffState"]
+
+
+def test_first_status_writes_on_off_with_humidity_ui_value(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
+
+
+def test_humidity_only_change_rewrites_on_off_with_new_text_and_same_boolean(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {**STATUS, "6": 57})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "57%"}]
+
+
+def test_identical_data_writes_no_on_off_entry(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, STATUS)
+    assert dev.writes == [] and _on_off_writes(dev) == []
+
+
+def test_switching_off_writes_off_text_with_false_value(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {"1": False})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": False, "uiValue": "off"}]
+
+
+def test_text_is_rewritten_after_connection_drop_and_reconnect(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    p._on_connection(dev.id, False, "Network Error")
+    p._on_dps(dev.id, STATUS)  # real order: the first status() reaches _on_dps ...
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}] * 2
+    p._on_connection(dev.id, True, "")  # ... before _on_connection(True)
+    dev.writes.clear()
+    p._on_dps(dev.id, STATUS)  # the next identical update must not rewrite the text
+    assert _on_off_writes(dev) == []
+
+
+def test_non_display_change_writes_no_on_off_entry(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {**STATUS, "2": 60})  # target humidity only
+    assert dev.states["targetHumidity"] == 60 and _on_off_writes(dev) == []
+
+
+def test_restart_comm_writes_the_text_again(make_plugin):
+    dev = _FakeDevice()
+    p = make_plugin([dev])
+    first, second = FakeTuya(), FakeTuya()
+    fakes = [first, second]
+    p._device_factory = lambda *a: fakes.pop(0)
+    p.deviceStartComm(dev)
+    assert wait_for(lambda: _on_off_writes(dev))
+    p.deviceStopComm(dev)
+    dev.writes.clear()
+    p.deviceStartComm(dev)  # same data comes back from the device
+    assert wait_for(lambda: _on_off_writes(dev))
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
+    p.deviceStopComm(dev)
+
+
+def test_failed_write_does_not_stick_the_column(setup):
+    p, dev = setup
+    dev.fail_next_write = True
+    with pytest.raises(RuntimeError):
+        p._on_dps(dev.id, STATUS)
+    p._on_dps(dev.id, STATUS)  # same data again: the text must still be attached
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
+
+
+def test_display_bug_does_not_block_real_state_updates(setup, monkeypatch, caplog):
+    import definitions
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("display bug")
+
+    monkeypatch.setattr(definitions, "display_text", boom)
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    assert dev.states["humidity"] == 56 and "tankFull" in dev.states and dev.states["onOffState"] is True
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True}]  # no text attached
+    assert "Dehumidifier" in caplog.text and "State column" in caplog.text
+    assert any(r.levelno >= logging.ERROR for r in caplog.records)
+
+
+def test_wrong_type_display_value_falls_back_to_on_and_warns_once(setup, caplog):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    caplog.clear()
+    p._on_dps(dev.id, {**STATUS, "6": "wet"})
+    p._on_dps(dev.id, {**STATUS, "6": "wet"})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "on"}]
+    assert not any(s["key"] == "humidity" for k, b in dev.writes if k == "states" for s in b)
+    assert dev.states["humidity"] == 56  # old number untouched, but not displayed
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "Dehumidifier" in warnings[0].getMessage()
+    assert "6" in warnings[0].getMessage() and "'wet'" in warnings[0].getMessage()
+    dev.writes.clear()
+    p._on_dps(dev.id, {**STATUS, "6": 57})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "57%"}]
+    p._on_dps(dev.id, {**STATUS, "6": "wet"})  # a fresh bad spell warns again
+    assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 2
+
+
+def test_wrong_type_display_value_while_off_stays_off(setup):
+    p, dev = setup
+    p._on_dps(dev.id, {**STATUS, "1": False, "6": "wet"})
+    assert dev.states["onOffState.ui"] == "off"
+
+
+def test_displayed_text_through_a_run_of_updates(setup):
+    p, dev = setup
+    ui = lambda: dev.states["onOffState.ui"]  # noqa: E731
+    p._on_dps(dev.id, STATUS)
+    p._on_connection(dev.id, True, "")
+    assert ui() == "56%"
+    p._on_dps(dev.id, {"6": 57})
+    assert ui() == "57%"
+    p._on_dps(dev.id, {"1": False})
+    assert ui() == "off" and dev.states["onOffState"] is False
+    p._on_dps(dev.id, {"1": True})
+    assert ui() == "57%" and dev.states["onOffState"] is True
+
+
+def test_on_off_value_is_never_replaced_by_a_string(setup):
+    p, dev = setup
+    for dps in (STATUS, {**STATUS, "6": 60}, {"1": False}, {"1": True}):
+        p._on_dps(dev.id, dps)
+    entries = _on_off_writes(dev)
+    assert entries and all(isinstance(e["value"], bool) for e in entries)
+    assert isinstance(dev.states["onOffState"], bool)
+
+
+def test_generic_device_gets_no_on_off_entry(make_plugin):
+    dev = _FakeDevice(2, type_id="tuyaGeneric")
+    p = make_plugin([dev])
+    p._on_dps(2, {"1": True})
+    assert _on_off_writes(dev) == []

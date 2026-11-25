@@ -235,3 +235,27 @@ def test_real_tinytuya_factory_configures_without_touching_the_network():
     assert dev.socketPersistent is True and dev.socketRetryLimit == 1
     assert dev.version == 3.5 and dev.socket is None
     assert logging.getLogger("tinytuya").level == logging.WARNING
+
+
+def test_reconnect_does_not_re_emit_a_dp_the_new_status_omits(make_link, recorder):
+    first = FakeTuya(status=[{"dps": {"1": True, "6": 56}}],
+                     receives=[{"Error": "Network Error: Unable to Connect", "Err": "901", "Payload": None}])
+    second = FakeTuya(status=[{"dps": {"1": True}}])
+    link = make_link([first, second])
+    link.start()
+    assert wait_for(lambda: [c[0] for c in recorder.conn][:3] == [True, False, True])
+    assert "6" in recorder.dps[0]
+    after = [d for d in recorder.dps[1:]]
+    assert after and all("6" not in d for d in after)
+
+
+def test_swallowed_callback_failure_names_the_type_and_hides_the_key(make_link, recorder, caplog):
+    def broken(dps):
+        raise ValueError(f"bad {KEY}")
+
+    recorder.on_dps = broken
+    link = make_link([FakeTuya()])
+    caplog.set_level(logging.ERROR)
+    link.start()
+    assert wait_for(lambda: "callback failed" in caplog.text)
+    assert "ValueError" in caplog.text and KEY not in caplog.text and "****" in caplog.text
