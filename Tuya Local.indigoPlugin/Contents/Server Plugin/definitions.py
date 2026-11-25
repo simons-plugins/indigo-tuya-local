@@ -89,8 +89,23 @@ class Definition:
                     raise DefinitionError(f"state {sid!r} defined twice or reserved")
             self.by_state[spec.state] = spec
         self.display_state = data.get("displayState")
-        if self.display_state is not None and self.display_state not in self.by_state:
+        if self.display_state is not None and (
+                not isinstance(self.display_state, str) or self.display_state not in self.by_state):
             raise DefinitionError(f"displayState {self.display_state!r} is not a state this definition maps")
+        self.off_display = data.get("offDisplay")
+        if self.off_display is not None:
+            self._check_off_display(self.off_display)
+
+    def _check_off_display(self, od):
+        if self.display_state is None:
+            raise DefinitionError("offDisplay needs displayState (the State column text it overrides)")
+        if not isinstance(od, dict) or "state" not in od or not isinstance(od.get("text"), str) or not od["text"]:
+            raise DefinitionError("offDisplay needs 'state' and non-empty 'text'")
+        # Bit names (coolingDown) are states but not in by_state, so check state_ids().
+        known = set(self.state_ids()) - {UNKNOWN_DPS_STATE}
+        for key in ("state", "minutesState"):
+            if key in od and (not isinstance(od[key], str) or od[key] not in known):
+                raise DefinitionError(f"offDisplay {key} {od[key]!r} is not a state this definition maps")
 
     def state_ids(self):
         """Every state id this definition writes, including bit flags and unknownDps."""
@@ -192,13 +207,20 @@ def rejected_display_value(defn, dps):
 def display_text(defn, states, display_current=True):
     """Text for the State column of a relay device, or None to leave Indigo's default.
 
-    ``states`` is state id -> value. Off -> "off"; on -> the definition's display
+    ``states`` is state id -> value. Off -> "off" (or the definition's ``offDisplay`` text, with minutes, while
+    its flag state is True); on -> the definition's display
     state with its unit (e.g. "56%"); on but no usable value yet, or the value is
     known to be stale (``display_current`` False) -> "on".
     """
     if defn.display_state is None:
         return None
     if states.get("onOffState") is False:
+        od = defn.off_display
+        if od and states.get(od["state"]) is True:
+            minutes = states.get(od.get("minutesState"))
+            if _is_int(minutes) and minutes > 0:
+                return f"{od['text']} {minutes} min"
+            return od["text"]
         return "off"
     value = states.get(defn.display_state)
     if not display_current or value is None or value == "":

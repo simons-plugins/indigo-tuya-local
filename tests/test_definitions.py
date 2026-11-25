@@ -136,3 +136,87 @@ def test_display_state_naming_an_unmapped_state_is_rejected_at_load(tmp_path):
          "dps": [{"dp": 1, "state": "onOffState", "type": "bool"}]}))
     found, errors = defs.load_definitions(tmp_path)
     assert found == {} and len(errors) == 1 and "nope" in errors[0][1]
+
+
+# ------------------------------------------------------------ offDisplay (cool-down text)
+def test_display_text_off_and_cooling_shows_minutes(meaco):
+    states = {"onOffState": False, "coolingDown": True, "timerMinutesLeft": 11, "humidity": 56}
+    assert defs.display_text(meaco, states) == "cooling 11 min"
+
+
+@pytest.mark.parametrize("minutes", [0, -3, None, True, "11", 11.0])
+def test_display_text_off_and_cooling_without_usable_minutes_says_cooling(meaco, minutes):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": True, "timerMinutesLeft": minutes}) == "cooling"
+
+
+def test_display_text_off_and_cooling_with_no_minutes_state_says_cooling(meaco):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": True}) == "cooling"
+
+
+@pytest.mark.parametrize("cooling", [False, None])
+def test_display_text_off_not_cooling_says_off(meaco, cooling):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": cooling, "timerMinutesLeft": 11}) == "off"
+
+
+def test_display_text_on_ignores_cooling_flag(meaco):
+    states = {"onOffState": True, "coolingDown": True, "timerMinutesLeft": 11, "humidity": 56}
+    assert defs.display_text(meaco, states) == "56%"
+
+
+_OD_DPS = [{"dp": 1, "state": "onOffState", "type": "bool"},
+           {"dp": 18, "state": "minutesLeft", "type": "int", "settable": False},
+           {"dp": 19, "state": "faultCode", "type": "bitfield", "settable": False, "bits": {"4": "coolingDown"}}]
+
+
+def _load_od(tmp_path, **extra):
+    data = {"id": "x", "name": "x", "kind": "k", "displayState": "onOffState", "dps": _OD_DPS}
+    data.update(extra)
+    data = {k: v for k, v in data.items() if v is not _DROP}
+    (tmp_path / "bad.json").write_text(json.dumps(data))
+    return defs.load_definitions(tmp_path)
+
+
+_DROP = object()
+_OK = {"state": "coolingDown", "text": "cooling", "minutesState": "minutesLeft"}
+
+
+def test_valid_off_display_loads(tmp_path):
+    found, errors = _load_od(tmp_path, offDisplay=_OK)
+    assert errors == [] and "x" in found
+
+
+@pytest.mark.parametrize("od, named", [
+    ({"state": "nope", "text": "cooling"}, "state"),
+    ({"state": "unknownDps", "text": "cooling"}, "state"),
+    ({"state": ["coolingDown"], "text": "cooling"}, "state"),
+    ({**_OK, "minutesState": "nope"}, "minutesState"),
+    ({**_OK, "minutesState": ["minutesLeft"]}, "minutesState"),
+    ({"state": "coolingDown"}, "text"),
+    ({"text": "cooling"}, "state"),
+    ({**_OK, "text": ""}, "text"),
+    ({**_OK, "text": 5}, "text"),
+    ("cooling", "offDisplay"),
+    (["coolingDown"], "offDisplay"),
+])
+def test_bad_off_display_is_a_reported_error_not_a_crash(tmp_path, od, named):
+    found, errors = _load_od(tmp_path, offDisplay=od)
+    assert found == {} and len(errors) == 1 and "offDisplay" in errors[0][1] and named in errors[0][1]
+
+
+def test_off_display_without_display_state_is_rejected(tmp_path):
+    found, errors = _load_od(tmp_path, offDisplay=_OK, displayState=_DROP)
+    assert found == {} and len(errors) == 1 and "displayState" in errors[0][1]
+
+
+def test_unhashable_display_state_is_a_reported_error(tmp_path):
+    found, errors = _load_od(tmp_path, displayState=["onOffState"])
+    assert found == {} and len(errors) == 1 and "displayState" in errors[0][1]
+
+
+def test_display_text_without_off_display_is_plain_off_or_value(tmp_path):
+    found, errors = _load_od(tmp_path, displayState="minutesLeft")
+    assert errors == []
+    d = found["x"]
+    assert d.off_display is None
+    assert defs.display_text(d, {"onOffState": False, "minutesLeft": 5}) == "off"
+    assert defs.display_text(d, {"onOffState": True, "minutesLeft": 5}) == "5"
