@@ -336,6 +336,14 @@ def test_cooling_countdown_ticks_on_a_partial_frame_and_boolean_stays_false(setu
     assert _on_off_writes(dev) == [{"key": "onOffState", "value": False, "uiValue": "cooling 10 min"}]
 
 
+def test_cooling_flag_arriving_after_minutes_still_ends_at_cooling_n_min(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    p._on_dps(dev.id, {"1": False, "18": 11})
+    p._on_dps(dev.id, {"19": 16})
+    assert _on_off_writes(dev)[-1] == {"key": "onOffState", "value": False, "uiValue": "cooling 11 min"}
+
+
 def test_cooling_bit_clearing_returns_text_to_off(setup):
     p, dev = setup
     p._on_dps(dev.id, STATUS)

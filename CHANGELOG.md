@@ -2,7 +2,7 @@
 
 ## 2026.2.0
 
-- While the dehumidifier runs its cool-down after being switched off, the State column shows `cooling 11 min` (the countdown from the device) instead of `off`; just `cooling` when no minutes are reported. Display only: `onOffState` stays `False`. Definitions opt in with `offDisplay` (`state`, `text`, optional `minutesState`), validated at load.
+- While the dehumidifier runs its cool-down after being switched off, the State column shows `cooling 11 min` (the countdown from the device) instead of `off`; just `cooling` when no minutes are reported. Display only: `onOffState` stays `False`. Definitions opt in with `offDisplay` (`state`, `text`, optional `minutesState`), validated at load (`offDisplay` requires `displayState`).
 
 ## 2026.1.0
 
