@@ -10,7 +10,7 @@ Status: first version, running against one real Meaco DD8L Pro dehumidifier (pro
 2. Install the plugin by double-clicking `Tuya Local.indigoPlugin`. There is nothing else to install.
 3. Create a **Tuya Dehumidifier** device and enter the IP address, device ID, local key, protocol version (3.5 for the Meaco) and product. Use **Tuya Generic** for any other device: it exposes the raw data points as JSON in the `dps` state and the **Set Data Point** action.
 
-While the dehumidifier is running, Indigo's State column shows the current humidity (e.g. `56%`), and `off` when it is switched off; this is display only and `onOffState` stays a real on/off value.
+While the dehumidifier is running, Indigo's State column shows the current humidity (e.g. `56%`), and `off` when it is switched off (`cooling 11 min` during the post-off cool-down); this is display only and `onOffState` stays a real on/off value.
 
 There is no auto-discovery: UDP broadcast does not cross subnets. Give the device a static IP.
 

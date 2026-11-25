@@ -136,3 +136,42 @@ def test_display_state_naming_an_unmapped_state_is_rejected_at_load(tmp_path):
          "dps": [{"dp": 1, "state": "onOffState", "type": "bool"}]}))
     found, errors = defs.load_definitions(tmp_path)
     assert found == {} and len(errors) == 1 and "nope" in errors[0][1]
+
+
+# ------------------------------------------------------------ offDisplay (cool-down text)
+def test_display_text_off_and_cooling_shows_minutes(meaco):
+    states = {"onOffState": False, "coolingDown": True, "timerMinutesLeft": 11, "humidity": 56}
+    assert defs.display_text(meaco, states) == "cooling 11 min"
+
+
+@pytest.mark.parametrize("minutes", [0, -3, None, True, "11", 11.0])
+def test_display_text_off_and_cooling_without_usable_minutes_says_cooling(meaco, minutes):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": True, "timerMinutesLeft": minutes}) == "cooling"
+
+
+def test_display_text_off_and_cooling_with_no_minutes_state_says_cooling(meaco):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": True}) == "cooling"
+
+
+@pytest.mark.parametrize("cooling", [False, None])
+def test_display_text_off_not_cooling_says_off(meaco, cooling):
+    assert defs.display_text(meaco, {"onOffState": False, "coolingDown": cooling, "timerMinutesLeft": 11}) == "off"
+
+
+def test_display_text_on_ignores_cooling_flag(meaco):
+    states = {"onOffState": True, "coolingDown": True, "timerMinutesLeft": 11, "humidity": 56}
+    assert defs.display_text(meaco, states) == "56%"
+
+
+@pytest.mark.parametrize("bad", [
+    {"state": "nope", "text": "cooling"},
+    {"state": "coolingDown", "text": "cooling", "minutesState": "nope"},
+    {"state": "coolingDown"},
+    {"text": "cooling"},
+])
+def test_off_display_naming_an_unmapped_state_is_rejected_at_load(tmp_path, bad):
+    (tmp_path / "bad.json").write_text(json.dumps(
+        {"id": "x", "name": "x", "kind": "k", "displayState": "onOffState", "offDisplay": bad,
+         "dps": [{"dp": 1, "state": "onOffState", "type": "bool"}]}))
+    found, errors = defs.load_definitions(tmp_path)
+    assert found == {} and len(errors) == 1 and "offDisplay" in errors[0][1]
