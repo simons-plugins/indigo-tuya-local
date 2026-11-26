@@ -60,5 +60,5 @@ def test_requirements_and_plist():
     assert "version_tuple = (1, 21, 1)" in (SERVER_PLUGIN_DIR / "tinytuya" / "core" / "core.py").read_text()
     assert (SERVER_PLUGIN_DIR / "tinytuya" / "LICENSE").exists()
     plist = (SERVER_PLUGIN_DIR.parent / "Info.plist").read_text()
-    for needle in ("com.simons-plugins.indigo-tuya-local", "2026.2.0", "<string>3.4</string>", "indigo-tuya-local"):
+    for needle in ("com.simons-plugins.indigo-tuya-local", "2026.3.0", "<string>3.4</string>", "indigo-tuya-local"):
         assert needle in plist

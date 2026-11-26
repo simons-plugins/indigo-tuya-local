@@ -351,3 +351,15 @@ def test_cooling_bit_clearing_returns_text_to_off(setup):
     dev.writes.clear()
     p._on_dps(dev.id, {"19": 0})
     assert _on_off_writes(dev) == [{"key": "onOffState", "value": False, "uiValue": "off"}]
+
+
+# ------------------------------------------------------- tank full text
+def test_tank_full_bit_on_a_fault_only_frame_shows_tank_full_then_humidity_again(setup):
+    p, dev = setup
+    p._on_dps(dev.id, STATUS)
+    dev.writes.clear()
+    p._on_dps(dev.id, {"19": 1})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "tank full"}]
+    dev.writes.clear()
+    p._on_dps(dev.id, {"19": 0})
+    assert _on_off_writes(dev) == [{"key": "onOffState", "value": True, "uiValue": "56%"}]
