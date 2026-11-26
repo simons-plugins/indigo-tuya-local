@@ -2,7 +2,7 @@
 
 ## 2026.3.0
 
-- While the dehumidifier is switched on but its water tank is full (so it has stopped dehumidifying), the State column shows `tank full` instead of the humidity. Display only: `onOffState` stays `True`. Shown even if the humidity reading is stale or missing; when switched off it still reads `off` / `cooling N min`. Definitions opt in with `onDisplay` (`state`, `text`), the on-side mirror of `offDisplay`, validated at load (requires `displayState`).
+- While the dehumidifier is switched on but its water tank is full (so it has stopped dehumidifying), the State column shows `tank full` instead of the humidity. Display only: `onOffState` stays `True`. Shown even if the humidity reading is stale or missing; when switched off it still reads `off` / `cooling N min`. Definitions opt in with `onDisplay` (`state`, `text`), the on-side mirror of `offDisplay`, validated at load (requires `displayState`; the flag state must be a boolean data point or bitfield bit, not `onOffState`).
 
 ## 2026.2.0
 

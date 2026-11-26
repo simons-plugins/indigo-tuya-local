@@ -109,6 +109,15 @@ class Definition:
         for key in state_keys:
             if key in od and (not isinstance(od[key], str) or od[key] not in known):
                 raise DefinitionError(f"{name} {key} {od[key]!r} is not a state this definition maps")
+        # The flag is tested with `is True`, so it must be a bool data point or a bit name, and not the
+        # on/off switch itself (the override only applies on one side of it).
+        flag = od["state"]
+        if flag == "onOffState":
+            raise DefinitionError(f"{name} state 'onOffState' is the on/off switch itself, not a flag")
+        bool_ids = {spec.state for spec in self.dps if spec.type == "bool"}
+        bit_ids = {bit for spec in self.dps for bit in spec.bits.values()}
+        if flag not in bool_ids | bit_ids:
+            raise DefinitionError(f"{name} state {flag!r} is not a boolean flag (a bool data point or bitfield bit)")
 
     def state_ids(self):
         """Every state id this definition writes, including bit flags and unknownDps."""

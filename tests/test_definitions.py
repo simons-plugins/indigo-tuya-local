@@ -225,6 +225,8 @@ def test_display_text_without_off_display_is_plain_off_or_value(tmp_path):
 # ------------------------------------------------------------ onDisplay (tank full text)
 _ON_OK = {"state": "tankFull", "text": "tank full"}
 _ON_DPS = _OD_DPS + [{"dp": 20, "state": "humidity", "type": "int", "unit": "%", "settable": False},
+                     {"dp": 22, "state": "mode", "type": "enum", "settable": True,
+                      "values": [{"raw": "a", "id": "a", "label": "A"}]},
                      {"dp": 21, "state": "faults", "type": "bitfield", "settable": False, "bits": {"0": "tankFull"}}]
 
 
@@ -277,17 +279,30 @@ def test_definition_without_on_display_is_unchanged(tmp_path):
 
 
 @pytest.mark.parametrize("od, named", [
-    ({"text": "tank full"}, "state"),
-    ({"state": "nope", "text": "tank full"}, "state"),
-    ({"state": ["tankFull"], "text": "tank full"}, "state"),
-    ({"state": "tankFull", "text": ""}, "text"),
-    ({"state": "tankFull"}, "text"),
-    ("tank full", "onDisplay"),
-    (["tankFull"], "onDisplay"),
+    ({"text": "tank full"}, "needs 'state' and non-empty 'text'"),
+    ({"state": "nope", "text": "tank full"}, "is not a state this definition maps"),
+    ({"state": ["tankFull"], "text": "tank full"}, "is not a state this definition maps"),
+    ({"state": "tankFull", "text": ""}, "needs 'state' and non-empty 'text'"),
+    ({"state": "tankFull"}, "needs 'state' and non-empty 'text'"),
+    ("tank full", "needs 'state' and non-empty 'text'"),
+    (["tankFull"], "needs 'state' and non-empty 'text'"),
+    ({"state": "humidity", "text": "tank full"}, "is not a boolean flag"),
+    ({"state": "mode", "text": "tank full"}, "is not a boolean flag"),
+    ({"state": "onOffState", "text": "tank full"}, "is the on/off switch itself"),
 ])
 def test_bad_on_display_is_a_reported_error_not_a_crash(tmp_path, od, named):
     found, errors = _load_on(tmp_path, onDisplay=od)
     assert found == {} and len(errors) == 1 and "onDisplay" in errors[0][1] and named in errors[0][1]
+
+
+def test_off_display_with_non_boolean_flag_state_is_rejected(tmp_path):
+    found, errors = _load_on(tmp_path, offDisplay={"state": "humidity", "text": "cooling"})
+    assert found == {} and len(errors) == 1 and "offDisplay" in errors[0][1] and "is not a boolean flag" in errors[0][1]
+
+
+def test_off_display_on_off_switch_flag_is_rejected(tmp_path):
+    found, errors = _load_on(tmp_path, offDisplay={"state": "onOffState", "text": "cooling"})
+    assert found == {} and len(errors) == 1 and "is the on/off switch itself" in errors[0][1]
 
 
 def test_on_display_without_display_state_is_rejected(tmp_path):
