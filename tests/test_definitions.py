@@ -220,3 +220,83 @@ def test_display_text_without_off_display_is_plain_off_or_value(tmp_path):
     assert d.off_display is None
     assert defs.display_text(d, {"onOffState": False, "minutesLeft": 5}) == "off"
     assert defs.display_text(d, {"onOffState": True, "minutesLeft": 5}) == "5"
+
+
+# ------------------------------------------------------------ onDisplay (tank full text)
+_ON_OK = {"state": "tankFull", "text": "tank full"}
+_ON_DPS = _OD_DPS + [{"dp": 20, "state": "humidity", "type": "int", "unit": "%", "settable": False},
+                     {"dp": 21, "state": "faults", "type": "bitfield", "settable": False, "bits": {"0": "tankFull"}}]
+
+
+def _load_on(tmp_path, **extra):
+    data = {"id": "x", "name": "x", "kind": "k", "displayState": "humidity", "dps": _ON_DPS}
+    data.update(extra)
+    data = {k: v for k, v in data.items() if v is not _DROP}
+    (tmp_path / "bad.json").write_text(json.dumps(data))
+    return defs.load_definitions(tmp_path)
+
+
+def _on_defn(tmp_path, **extra):
+    found, errors = _load_on(tmp_path, **extra)
+    assert errors == []
+    return found["x"]
+
+
+def test_display_text_on_and_tank_full_shows_text(tmp_path):
+    d = _on_defn(tmp_path, onDisplay=_ON_OK)
+    assert defs.display_text(d, {"onOffState": True, "tankFull": True, "humidity": 52}) == "tank full"
+
+
+@pytest.mark.parametrize("flag", [False, None, "missing"])
+def test_display_text_on_and_tank_not_full_shows_humidity(tmp_path, flag):
+    d = _on_defn(tmp_path, onDisplay=_ON_OK)
+    states = {"onOffState": True, "humidity": 52}
+    if flag != "missing":
+        states["tankFull"] = flag
+    assert defs.display_text(d, states) == "52%"
+
+
+@pytest.mark.parametrize("humidity", [52, None])
+def test_display_text_tank_full_wins_over_stale_or_missing_value(tmp_path, humidity):
+    d = _on_defn(tmp_path, onDisplay=_ON_OK)
+    states = {"onOffState": True, "tankFull": True, "humidity": humidity}
+    assert defs.display_text(d, states, display_current=False) == "tank full"
+
+
+def test_display_text_off_and_tank_full_still_says_off(tmp_path):
+    d = _on_defn(tmp_path, onDisplay=_ON_OK, offDisplay=_OK)
+    assert defs.display_text(d, {"onOffState": False, "tankFull": True}) == "off"
+    assert defs.display_text(d, {"onOffState": False, "tankFull": True, "coolingDown": True,
+                                 "minutesLeft": 4}) == "cooling 4 min"
+
+
+def test_definition_without_on_display_is_unchanged(tmp_path):
+    d = _on_defn(tmp_path)
+    assert d.on_display is None
+    assert defs.display_text(d, {"onOffState": True, "tankFull": True, "humidity": 52}) == "52%"
+
+
+@pytest.mark.parametrize("od, named", [
+    ({"text": "tank full"}, "state"),
+    ({"state": "nope", "text": "tank full"}, "state"),
+    ({"state": ["tankFull"], "text": "tank full"}, "state"),
+    ({"state": "tankFull", "text": ""}, "text"),
+    ({"state": "tankFull"}, "text"),
+    ("tank full", "onDisplay"),
+    (["tankFull"], "onDisplay"),
+])
+def test_bad_on_display_is_a_reported_error_not_a_crash(tmp_path, od, named):
+    found, errors = _load_on(tmp_path, onDisplay=od)
+    assert found == {} and len(errors) == 1 and "onDisplay" in errors[0][1] and named in errors[0][1]
+
+
+def test_on_display_without_display_state_is_rejected(tmp_path):
+    found, errors = _load_on(tmp_path, onDisplay=_ON_OK, displayState=_DROP)
+    assert found == {} and len(errors) == 1 and "onDisplay" in errors[0][1] and "displayState" in errors[0][1]
+
+
+def test_meaco_on_with_tank_full_says_tank_full(meaco):
+    states = {"onOffState": True, "tankFull": True, "humidity": 52}
+    assert defs.display_text(meaco, states) == "tank full"
+    assert defs.display_text(meaco, {**states, "tankFull": False}) == "52%"
+    assert defs.display_text(meaco, {**states, "onOffState": False}) == "off"

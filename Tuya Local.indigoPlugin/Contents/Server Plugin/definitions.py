@@ -94,18 +94,21 @@ class Definition:
             raise DefinitionError(f"displayState {self.display_state!r} is not a state this definition maps")
         self.off_display = data.get("offDisplay")
         if self.off_display is not None:
-            self._check_off_display(self.off_display)
+            self._check_display_override("offDisplay", self.off_display, ("state", "minutesState"))
+        self.on_display = data.get("onDisplay")
+        if self.on_display is not None:
+            self._check_display_override("onDisplay", self.on_display, ("state",))
 
-    def _check_off_display(self, od):
+    def _check_display_override(self, name, od, state_keys):
         if self.display_state is None:
-            raise DefinitionError("offDisplay needs displayState (the State column text it overrides)")
+            raise DefinitionError(f"{name} needs displayState (the State column text it overrides)")
         if not isinstance(od, dict) or "state" not in od or not isinstance(od.get("text"), str) or not od["text"]:
-            raise DefinitionError("offDisplay needs 'state' and non-empty 'text'")
-        # Bit names (coolingDown) are states but not in by_state, so check state_ids().
+            raise DefinitionError(f"{name} needs 'state' and non-empty 'text'")
+        # Bit names (coolingDown, tankFull) are states but not in by_state, so check state_ids().
         known = set(self.state_ids()) - {UNKNOWN_DPS_STATE}
-        for key in ("state", "minutesState"):
+        for key in state_keys:
             if key in od and (not isinstance(od[key], str) or od[key] not in known):
-                raise DefinitionError(f"offDisplay {key} {od[key]!r} is not a state this definition maps")
+                raise DefinitionError(f"{name} {key} {od[key]!r} is not a state this definition maps")
 
     def state_ids(self):
         """Every state id this definition writes, including bit flags and unknownDps."""
@@ -210,7 +213,8 @@ def display_text(defn, states, display_current=True):
     ``states`` is state id -> value. Off -> "off" (or the definition's ``offDisplay`` text, with minutes, while
     its flag state is True); on -> the definition's display
     state with its unit (e.g. "56%"); on but no usable value yet, or the value is
-    known to be stale (``display_current`` False) -> "on".
+    known to be stale (``display_current`` False) -> "on". While on, the definition's ``onDisplay``
+    text (e.g. "tank full") wins over all of those when its flag state is True.
     """
     if defn.display_state is None:
         return None
@@ -222,6 +226,8 @@ def display_text(defn, states, display_current=True):
                 return f"{od['text']} {minutes} min"
             return od["text"]
         return "off"
+    if defn.on_display and states.get(defn.on_display["state"]) is True:
+        return defn.on_display["text"]
     value = states.get(defn.display_state)
     if not display_current or value is None or value == "":
         return "on"
